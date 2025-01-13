@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.hover-transform:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0px 0px #000000;
+  transition: all 0.2s ease;
+}
+*{
+  /* background-color: #f0edeb; */
+  /* font-family: sans-serif; */
+}
