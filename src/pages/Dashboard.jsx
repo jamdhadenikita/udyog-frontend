@@ -1,17 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, Menu, Bell, User, Settings, LogOut } from "lucide-react";
+import Swal from "sweetalert2"; // Make sure to import Swal
 
 const Dashboard = () => {
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [formData, setFormData] = useState({
+    fullName: "",
+    username: "",
+    email: "",
+    contactNumber: "",
+    password: "",
+  });
 
-  // Sample data for statistics
-  const stats = [
-    { title: "Article Views", value: "60.5k", icon: Search },
-    { title: "Likes", value: "150", icon: Bell },
-    { title: "Comments", value: "320", icon: User },
-    { title: "Published", value: "70", icon: Settings },
-  ];
+  // Fetch users on component mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const fetchUsers = async () => {
     try {
@@ -21,9 +27,129 @@ const Dashboard = () => {
       setUsers(data);
     } catch (error) {
       console.error("Error fetching users:", error);
-      // Add error handling here
     }
   };
+
+  const handleDelete = async (userId) => {
+    try {
+      // Show confirmation dialog
+      const result = await Swal.fire({
+        title: "Are you sure?",
+        text: "You won't be able to revert this!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Yes, delete it!",
+      });
+
+      // If user confirms deletion
+      if (result.isConfirmed) {
+        const response = await fetch(
+          `http://localhost:8080/user/delete/${userId}`,
+          {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to delete user");
+        }
+
+        // Remove user from state
+        setUsers(users.filter((user) => user.userId !== userId));
+
+        // Show success message
+        await Swal.fire(
+          "Deleted!",
+          "User has been deleted successfully.",
+          "success"
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      await Swal.fire(
+        "Error!",
+        "Failed to delete user. Please try again.",
+        "error"
+      );
+    }
+  };
+
+  const handleEdit = (user) => {
+    // Set the selected user for editing
+    setSelectedUser(user);
+    setFormData({
+      fullName: user.fullName,
+      username: user.username,
+      email: user.email,
+      contactNumber: user.contactNumber,
+      password: user.password,
+    });
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+
+    try {
+      const response = await fetch(
+        `http://localhost:8080/user/update/${selectedUser.userId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to update user");
+      }
+
+      // Update the user list with the new user data
+      setUsers(
+        users.map((user) =>
+          user.userId === selectedUser.userId ? { ...user, ...formData } : user
+        )
+      );
+
+      await Swal.fire(
+        "Success!",
+        "User has been updated successfully.",
+        "success"
+      );
+
+      // Close the edit modal/form
+      setSelectedUser(null);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      await Swal.fire(
+        "Error!",
+        "Failed to update user. Please try again.",
+        "error"
+      );
+    }
+  };
+
+  // Sample data for statistics
+  const stats = [
+    { title: "Article Views", value: "60.5k", icon: Search },
+    { title: "Likes", value: "150", icon: Bell },
+    { title: "Comments", value: "320", icon: User },
+    { title: "Published", value: "70", icon: Settings },
+  ];
 
   const handleLogout = () => {
     // Add logout logic here
@@ -145,28 +271,156 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
-                    <tr key={user.userId} className="border-b hover:bg-gray-50">
-                      <td className="p-3">{user.userId}</td>
-                      <td className="p-3">{user.fullName}</td>
-                      <td className="p-3">{user.username}</td>
-                      <td className="p-3">{user.email}</td>
-                      <td className="p-3">{user.contactNumber}</td>
-                      <td className="p-3">*****</td>
-                      <td className="p-3 space-x-2">
-                        <button className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
-                          Edit
-                        </button>
-                        <button className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700">
-                          Delete
-                        </button>
+                  {users.length > 0 ? (
+                    users.map((user) => (
+                      <tr
+                        key={user.userId}
+                        className="border-b hover:bg-gray-50"
+                      >
+                        <td className="p-3">{user.userId}</td>
+                        <td className="p-3">{user.fullName}</td>
+                        <td className="p-3">{user.username}</td>
+                        <td className="p-3">{user.email}</td>
+                        <td className="p-3">{user.contactNumber}</td>
+                        <td className="p-3">*****</td>
+                        <td className="p-3 space-x-2">
+                          <button
+                            onClick={() => handleEdit(user)}
+                            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(user.userId)}
+                            className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="7" className="text-center p-3">
+                        No users found.
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
+
+          {/* Edit User Form (Modal) */}
+          {selectedUser && (
+            <div className="fixed top-0 left-0 right-0 bottom-0 bg-gray-800 bg-opacity-50 flex justify-center items-center">
+              <div className="bg-white p-6 rounded-lg w-1/3">
+                <h2 className="text-2xl font-semibold mb-4">Edit User</h2>
+                <form onSubmit={handleUpdate}>
+                  <div className="mb-4">
+                    <label
+                      htmlFor="fullName"
+                      className="block text-sm font-medium"
+                    >
+                      Full Name
+                    </label>
+                    <input
+                      id="fullName"
+                      type="text"
+                      name="fullName"
+                      value={formData.fullName}
+                      onChange={handleInputChange}
+                      className="w-full h-10 px-4 border rounded-lg mt-2"
+                    />
+                  </div>
+
+                  <div className="mb-4">
+                    <label
+                      htmlFor="username"
+                      className="block text-sm font-medium"
+                    >
+                      Username
+                    </label>
+                    <input
+                      id="username"
+                      type="text"
+                      name="username"
+                      value={formData.username}
+                      onChange={handleInputChange}
+                      className="w-full h-10 px-4 border rounded-lg mt-2"
+                    />
+                  </div>
+
+                  <div className="mb-4">
+                    <label
+                      htmlFor="email"
+                      className="block text-sm font-medium"
+                    >
+                      Email
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="w-full h-10 px-4 border rounded-lg mt-2"
+                    />
+                  </div>
+
+                  <div className="mb-4">
+                    <label
+                      htmlFor="contactNumber"
+                      className="block text-sm font-medium"
+                    >
+                      Contact Number
+                    </label>
+                    <input
+                      id="contactNumber"
+                      type="text"
+                      name="contactNumber"
+                      value={formData.contactNumber}
+                      onChange={handleInputChange}
+                      className="w-full h-10 px-4 border rounded-lg mt-2"
+                    />
+                  </div>
+
+                  <div className="mb-4">
+                    <label
+                      htmlFor="password"
+                      className="block text-sm font-medium"
+                    >
+                      Password
+                    </label>
+                    <input
+                      id="password"
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="w-full h-10 px-4 border rounded-lg mt-2"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedUser(null)}
+                      className="px-4 py-2 bg-gray-400 text-white rounded-lg"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                    >
+                      Update
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
